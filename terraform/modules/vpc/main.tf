@@ -28,7 +28,7 @@ resource "aws_subnet" "public" {
     Name = "${var.vpc_name}-public-${count.index + 1}"
   }
 }
-
+/* 
 resource "aws_subnet" "private" {
   count             = length(var.private_subnet_cidrs)
   vpc_id            = aws_vpc.this.id
@@ -38,7 +38,7 @@ resource "aws_subnet" "private" {
   tags = {
     Name = "${var.vpc_name}-private-${count.index + 1}"
   }
-}
+} */
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.this.id
@@ -67,8 +67,8 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table_association" "private" {
+/* resource "aws_route_table_association" "private" {
   count          = length(var.private_subnet_cidrs)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private.id
-}
+} */
