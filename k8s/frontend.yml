@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zuriapp-frontend
+  labels:
+    app: zuriapp-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zuriapp-frontend
+  template:
+    metadata:
+      labels:
+        app: zuriapp-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: naapholey/zuriapp-frontend1:linux
+        ports:
+        - containerPort: 80
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zuriapp-frontend
+spec:
+  # CHANGED: Use ClusterIP instead of LoadBalancer. 
+  # The Ingress controller exposes the app publicly now.
+  type: ClusterIP 
+  selector:
+    app: zuriapp-frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shop-ingress
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    # Forces Traefik to prioritize explicit paths over the root "/" path
+    traefik.ingress.kubernetes.io/priority: "10"
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix # Traefik will check this first because it's longer
+            backend:
+              service:
+                name: zuriapp-backend-service
+                port:
+                  number: 5000
+          - path: /
+            pathType: Prefix # Catch-all for frontend assets
+            backend:
+              service:
+                name: zuriapp-frontend
+                port:
+                  number: 80

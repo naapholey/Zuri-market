@@ -1,2 +1,2 @@
-# Zuri-market
-full CICD of the Zuri market app
+# zuriapp
+A live, running deployment of the Zuri Market application
