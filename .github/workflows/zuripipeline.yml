@@ -118,7 +118,7 @@ jobs:
     name: Kubernetes Deployment
     needs: build-and-publish
     runs-on: ubuntu-latest
-
+  
     env:
       K3S_SECRET_NAME: ${{ secrets.K3S_SECRET_NAME }}
 
