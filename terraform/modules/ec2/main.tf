@@ -15,6 +15,22 @@ data "aws_ami" "ubuntu" {
 }
 
 
+resource "aws_iam_role" "iam_role" {
+  name = var.iam_role
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
 resource "aws_iam_policy" "iam_policy" {
   name = var.iam_policy
 
@@ -51,7 +67,7 @@ resource "aws_iam_instance_profile" "instance_profile" {
 
 
 resource "aws_instance" "k3s" {
-    ami                         = data.aws_ami.ubuntu_2604.id
+    ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = var.subnet_id
   vpc_security_group_ids      = var.vpc_security_group_ids
@@ -59,7 +75,7 @@ resource "aws_instance" "k3s" {
 
   associate_public_ip_address = true
 
-  iam_instance_profile = aws_iam_instance_profile.ec2.name
+  iam_instance_profile = aws_iam_instance_profile.instance_profile.name
 
   user_data = file("${path.module}/user-data.sh")
 

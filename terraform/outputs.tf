@@ -7,6 +7,10 @@ output "public_subnets" {
   description = "List of public subnet IDs"
   value       = module.vpc.public_subnet_ids
 }
+output "instance_id" {
+  value = module.ec2.instance_id
+}
+
 /* 
 output "private_subnets" {
   description = "List of private subnet IDs"

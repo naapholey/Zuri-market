@@ -23,9 +23,8 @@ module "securitygroup" {
 }
 
 data "aws_secretsmanager_secret" "store" {
-  name = "zuri-app-secrets"
+  name = "zuri-k3s-kubeconfig"
 }
-
 module "ec2" {
     source = "./modules/ec2"
 

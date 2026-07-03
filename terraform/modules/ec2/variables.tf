@@ -4,6 +4,10 @@ variable "key_name" {
   type        = string
 }
 
+variable "iam_role" {
+  type = string
+  default = "value"
+}
 variable "project_name" {
     default = "zuriapp"
 }
