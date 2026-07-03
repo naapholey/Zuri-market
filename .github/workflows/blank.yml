@@ -1,199 +1,36 @@
-name: Zuriapp CI/CD Pipeline
+# This is a basic workflow to help you get started with Actions
 
+name: CI
+
+# Controls when the workflow will run
 on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ main ]
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
-permissions:
-  id-token: write  # Required for OIDC AWS Auth
-  contents: read   # Required to read repository code
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # -------------------------------------------------------------
-  # STAGE 1: Infrastructure Security Scan & Provisioning
-  # -------------------------------------------------------------
-  infrastructure:
-    name: Terraform & Security
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      # - name: Purge conflicting CloudWatch Log Group
-      #   run: |
-      #     aws logs delete-log-group --log-group-name "/aws/vpc-flow-logs/zuri-app-dev" || true
-      #   env:
-      #     AWS_REGION: us-east-1 # Change to your actual AWS region
-
-
-      - name: Run Trivy vulnerability scanner in IaC mode
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'config'
-          hide-progress: false
-          format: 'table'
-          exit-code: '0' # Fails the build if security issues are found
-
-      - name: Configure AWS Credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.ARN_TO_ASSUME }}
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: |
-          cd terraform
-          terraform init
-
-      - name: Terraform Format Check
-        run: |
-          cd terraform
-          terraform fmt -check -recursive
-
-      - name: Terraform Validate
-        run: |
-          cd terraform
-          terraform validate
-
-      - name: Terraform Plan
-        run: |
-          cd terraform
-          terraform plan -out=tfplan
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: |
-          cd terraform
-          terraform apply -auto-approve tfplan
-
-  # -------------------------------------------------------------
-  # STAGE 2: Build, Scan, and Publish Containers (Req 1 & 7)
-  # -------------------------------------------------------------
-  build-and-publish:
-    name: Containerize & Publish
-    needs: infrastructure
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        component: [frontend, backend]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Build Docker Image
-        run: |
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }} ./${{ matrix.component }}
-          docker tag ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:latest
-          docker image ls
-          
-      - name: Scan Container Image for Vulnerabilities
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '0' # Fails the build if CRITICAL vulnerabilities are found
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
-      - name: Push Image to DockerHub
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:latest
-
-  # -------------------------------------------------------------
-  # STAGE 3: Continuous Deployment to Kubernetes Cluster (Req 4)
-  # -------------------------------------------------------------
-  deploy:
-    name: Kubernetes Deployment
-    needs: build-and-publish
-    runs-on: ubuntu-latest
-  
-    env:
-      K3S_SECRET_NAME: ${{ secrets.K3S_SECRET_NAME }}
-
-    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.ARN_TO_ASSUME }}
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: ${{ secrets.AWS_REGION }}
+      # Runs a single command using the runners shell
+      - name: Run a one-line script
+        run: echo Hello, world!
 
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Wait for K3s bootstrap
+      # Runs a set of commands using the runners shell
+      - name: Run a multi-line script
         run: |
-          sleep 90
-
-      - name: Retrieve kubeconfig
-        run: |
-          set -euxo pipefail
-
-          mkdir -p ~/.kube
-
-          aws secretsmanager get-secret-value \
-          --secret-id "$K3S_SECRET_NAME" \
-          --query SecretString \
-          --output text \
-          > ~/.kube/config
-
-          chmod 600 ~/.kube/config
-
-          aws secretsmanager describe-secret \
-          --secret-id "$K3S_SECRET_NAME"
-
-          test -s ~/.kube/config
-
-      - name: Verify Cluster
-        run: |
-          kubectl version --client
-          kubectl cluster-info
-          kubectl get nodes
-
-      - name: Update Images
-        run: |
-          cd k8s
-
-          sed -i \
-          "s|image:.*zuri-frontend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-frontend:${{ github.sha }}|" \
-          deployment.yml
-
-          sed -i \
-          "s|image:.*zuri-backend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-backend:${{ github.sha }}|" \
-          deployment.yml
-
-      - name: Wait for  Update Images
-        run: |
-          sleep 5
-
-      - name: Deploy
-        run: kubectl apply --dry-run=client -f k8s/
-
-      - name: Wait for rollout
-        run: |
-          kubectl rollout status deployment/zuri-frontend-deployment --timeout=5m
-          kubectl rollout status deployment/zuri-backend-deployment --timeout=5m
-
-      - name: Show Kubernetes Context
-        run: |
-          kubectl config current-context
-          kubectl get ns
-
-      - name: Rollback on failure
-        if: failure()
-        run: |
-          kubectl rollout undo deployment/zuri-frontend-deployment
-          kubectl rollout undo deployment/zuri-backend-deployment
+          echo Add other actions to build,
+          echo test, and deploy your project.
