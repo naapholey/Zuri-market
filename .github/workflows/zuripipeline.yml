@@ -162,7 +162,25 @@ jobs:
       - name: Add EC2 host
         shell: bash
         run: |
-          ssh-keyscan -H ${{ needs.infrastructure.outputs.ec2_public_ip }} 2>/dev/null >> "$HOME/.ssh/known_hosts"
+          echo "Scanning remote server public key..."
+          
+          for i in {1..5}; do
+            # -T 30 gives the server 30 seconds to reply instead of dropping instantly
+            ssh-keyscan -T 30 -H ${{ needs.infrastructure.outputs.ec2_public_ip }} >> "$HOME/.ssh/known_hosts" 2>ssh_err.log
+            # ssh-keyscan -H ${{ needs.infrastructure.outputs.ec2_public_ip }} 2>/dev/null >> "$HOME/.ssh/known_hosts"
+
+            if [ $? -eq 0 ]; then
+              echo "Successfully captured EC2 host key fingerprint!"
+              exit 0
+            fi
+            
+            echo "Attempt $i failed. SSH port might not be ready yet. Retrying in 10 seconds..."
+            cat ssh_err.log
+            sleep 10
+          done
+          
+          echo "Critical Error: Could not reach EC2 instance via SSH on port 22 after 5 attempts."
+          exit 1
 
       # Download the Kubeconfig file down from the remote K3s EC2 server to the runner
       - name: Fetch Remote Kubeconfig
@@ -189,11 +207,16 @@ jobs:
       - name: Update Images
         run: |
           cd k8s
-          sed -i "s|image:.*zuri-frontend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-frontend:${{ github.sha }}|" deployment.yml
-          sed -i "s|image:.*zuri-backend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-backend:${{ github.sha }}|" deployment.yml
+          
+          # 1. Update the frontend image tag inside frontend.yml
+          sed -i "s|image:.*zuri-frontend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-frontend:${{ github.sha }}|" frontend.yml
+
+          # 2. Update the backend image tag inside backend.yml
+          sed -i "s|image:.*zuri-backend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-backend:${{ github.sha }}|" backend.yml
 
       - name: Deploy
-        run: kubectl apply -f k8s/
+        run: |
+          kubectl apply -f k8s/
 
       - name: Wait for rollout
         run: |
