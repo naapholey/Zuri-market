@@ -21,7 +21,10 @@ data "aws_ami" "ubuntu" {
  
 resource "aws_iam_role" "iam_role" {
   name = var.iam_role
-
+lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -41,7 +44,10 @@ resource "aws_iam_role" "iam_role" {
 }  */
 resource "aws_iam_policy" "iam_policy" {
   name = var.iam_policy
-
+lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -55,6 +61,7 @@ resource "aws_iam_policy" "iam_policy" {
       }
     ]
   })
+  
 }
 
 #------------ ATTACH POLICY ------------ 
@@ -72,8 +79,12 @@ resource "aws_iam_role_policy_attachment" "attach_policy" {
   id = "zuriapp-ec2-profile"
 }  */
 resource "aws_iam_instance_profile" "instance_profile" {
-  name_prefix = "zuriapp-iam-role-" 
+  name = "zuriapp-iam-role" 
   role = aws_iam_role.iam_role.name
+  lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
 }
 
 
@@ -96,6 +107,10 @@ resource "aws_instance" "k3s" {
     encrypted   = true
   }
 
+lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
   tags = {
     Name        = "${var.project_name}-k3s"
     Environment = var.environment
@@ -104,7 +119,10 @@ resource "aws_instance" "k3s" {
 
 resource "aws_eip" "k3s" {
   domain = "vpc"
-
+lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
   tags = {
     Name = "${var.project_name}-eip"
   }
@@ -113,4 +131,8 @@ resource "aws_eip" "k3s" {
 resource "aws_eip_association" "k3s" {
   instance_id   = aws_instance.k3s.id
   allocation_id = aws_eip.k3s.id
+  lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
 }

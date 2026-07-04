@@ -7,6 +7,10 @@ resource "aws_vpc" "this" {
     Name        = var.vpc_name
     Environment = var.environment
   }
+  lifecycle {
+    # Forces Terraform to wipe out the old resource before building the new one
+    create_before_destroy = false
+  }
 }
 
 resource "aws_internet_gateway" "this" {

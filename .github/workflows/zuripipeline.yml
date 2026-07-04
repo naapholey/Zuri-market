@@ -164,6 +164,13 @@ jobs:
             --protocol tcp \
             --port 22 \
             --cidr "${{ needs.infrastructure.outputs.ec2_public_ip }}/32" || true
+           
+          # ADD THIS: Authorize Kubernetes API (Port 6443)
+          aws ec2 authorize-security-group-ingress \
+            --group-id "$zuriapp-sg" \
+            --protocol tcp \
+            --port 6443 \
+            --cidr "${{ needs.infrastructure.outputs.ec2_public_ip }}/32" || true
             
       - name: Wait for EC2 Instance to be Ready
         run: sleep 60
@@ -193,6 +200,10 @@ jobs:
           sed -i "s|127.0.0.1|$TARGET_IP|" "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
 
+      - name: Wait for Kubernetes API to Initialize
+        run: |
+          echo "Giving K3s API 30 seconds to spin up TLS certificates..."
+          sleep 30
 
       - name: Debug kubeconfig
         run: |
