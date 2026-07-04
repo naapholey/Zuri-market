@@ -150,9 +150,19 @@ jobs:
           echo "Waiting for EC2 instance to be fully ready..."
           sleep 60
         
-          
+          jobs:
+  deploy:
+    runs-on: ubuntu-latest # <--- Change this from windows-latest to ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create SSH Directory Safely
+        run: |
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+
       - name: Configure SSH
-        shell: bash
         run: |
           # $HOME points directly to /home/runner/ on GitHub Actions
           mkdir -p "$HOME/.ssh"
