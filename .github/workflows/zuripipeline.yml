@@ -43,6 +43,8 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
 
       - name: Get GitHub Runner Public IP
         id: get-ip
@@ -150,8 +152,6 @@ jobs:
           echo "Waiting for EC2 instance to be fully ready..."
           sleep 60
         
-          jobs:
-  
       - name: Create SSH Directory Safely
         run: |
           mkdir -p ~/.ssh
