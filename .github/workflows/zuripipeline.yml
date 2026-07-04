@@ -152,6 +152,7 @@ jobs:
         
           
       - name: Configure SSH
+        shell: bash
         run: |
           # $HOME points directly to /home/runner/ on GitHub Actions
           mkdir -p "$HOME/.ssh"
