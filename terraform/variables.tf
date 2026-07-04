@@ -33,7 +33,3 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
-variable "runner_ssh_ip" {
-  type        = string
-  description = "The public IP address allowed to SSH into the instances"
-}
