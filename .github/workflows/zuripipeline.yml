@@ -156,10 +156,10 @@ jobs:
         run: |
           # This command dynamically adds your current runner IP into the firewall rules before scanning
           aws ec2 authorize-security-group-ingress \
-            --group-name "k8s-ec2-security-group" \
+            --group-name "zuriapp-sg" \
             --protocol tcp \
             --port 22 \
-            --cidr "${{ needs.infrastructure.outputs.runner_ip }}/32" || true
+            --cidr "${{ needs.infrastructure.outputs.ec2_public_ip }}/32" || true
             
       - name: Wait for EC2 Instance to be Ready
         run: sleep 60
