@@ -64,6 +64,16 @@ jobs:
           cd terraform
           terraform plan -out=tfplan
 
+      - name: Get GitHub Runner Public IP
+        id: get-ip
+        run: |
+          # Fetch the public IP and save it as a variable
+          RUNNER_IP=$(curl -s https://ifconfig.me)
+          echo "Runner IP is $RUNNER_IP"
+          
+          # Write it directly into a Terraform variables file
+          echo "runner_ssh_ip=\"${RUNNER_IP}/32\"" > terraform.tfvars
+
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
         run: |
@@ -210,6 +220,6 @@ jobs:
       - name: Rollback on failure
         if: failure()
         run: |
+          terraform destroy -auto-approve
           kubectl rollout undo deployment/zuri-frontend-deployment
           kubectl rollout undo deployment/zuri-backend-deployment
-          terraform destroy -auto-approve
