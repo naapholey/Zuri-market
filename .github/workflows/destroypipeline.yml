@@ -1,34 +1,32 @@
-name: Destroy Infrastructure
+name: Secure Infrastructure Teardown
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "destroy" to confirm'
-        required: true
+  # Allows you to trigger the destroy manually from the Actions UI tab
+  workflow_dispatch: 
 
 jobs:
-  destroy:
+  # Job 1: Request approval from a human reviewer
+  request-teardown:
     runs-on: ubuntu-latest
-
+    # This points directly to the rule you created in Step 1
+    environment: production-teardown 
     steps:
+      - name: Confirmation Granted
+        run: echo "Destroy request approved by an administrator. Starting cleanup..."
 
-      - name: Check confirmation
-        if: ${{ github.event.inputs.confirm != 'destroy' }}
+  # Job 2: Run the actual destroy only after Job 1 passes approval
+  terraform-destroy:
+    runs-on: ubuntu-latest
+    needs: request-teardown # Ensures this won't run unless Job 1 is cleared
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Run Terraform Destroy
         run: |
-          echo "Confirmation text did not match. Aborting."
-          exit 1
-          
-      - uses: actions/checkout@v4
-
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.ARN_TO_ASSUME }}
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Destroy
-        run: terraform destroy -auto-approve
+          terraform init
+          # The -auto-approve flag is safe here because GitHub handles the confirmation screen
+          terraform destroy -auto-approve 
