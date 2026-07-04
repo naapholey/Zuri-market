@@ -1,14 +1,21 @@
  <<-EOF
 #!/bin/bash
-set -eux
+ exec > /var/log/user_data.log 2>&1
+              set -e # Stop the script immediately if any command fails
 
-apt-get update
+              echo "=== Starting Kubernetes Installation ==="
+apt-get update -y
 
 apt-get install -y \
     curl \
+    apt-transport-https \
+    gpg \
     unzip \
     git \
     ca-certificates
+
+ swapoff -a
+sed -i '/swap/d' /etc/fstab
 
 curl -fsSL https://get.docker.com | sh
 
@@ -36,7 +43,7 @@ sed -i "s/127.0.0.1/${PUBLIC_IP}/" /tmp/kubeconfig
 aws secretsmanager put-secret-value \
   --secret-id zuri-k3s-kubeconfig \
   --secret-string file:///tmp/kubeconfig
-  
+
 mkdir -p /home/ubuntu/.kube
 
 cp /etc/rancher/k3s/k3s.yaml /home/ubuntu/.kube/config
