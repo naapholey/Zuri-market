@@ -28,13 +28,6 @@ jobs:
               role-session-name: GitHub_to_AWS_via_FederatedOIDC
               aws-region: ${{ secrets.AWS_REGION }}
 
-          - name: Run Shell Script
-            run: |
-              chmod +x ./scripts/test.sh
-              ./scripts/test.sh
-
-              - name: Configure SSH
-
           - name: Configure SSH
             run: |
                 mkdir -p ~/.ssh
