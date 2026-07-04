@@ -21,17 +21,6 @@ until kubectl get nodes >/dev/null 2>&1; do
     sleep 5
 done
 
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
-
-cp /etc/rancher/k3s/k3s.yaml /tmp/kubeconfig
-
-sed -i "s/127.0.0.1/${PUBLIC_IP}/" /tmp/kubeconfig
-
-aws secretsmanager put-secret-value \
-  --secret-id zuri-k3s-kubeconfig \
-  --secret-string file:///tmp/kubeconfig
-
-
 # Create kube directory
 mkdir -p /home/ubuntu/.kube
 

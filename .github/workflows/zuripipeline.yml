@@ -150,31 +150,17 @@ jobs:
           echo "Waiting for EC2 instance to be fully ready..."
           sleep 60
         
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Wait for K3s bootstrap
+          
+      - name: Configure SSH
         run: |
-          sleep 90
-
-      - name: Retrieve kubeconfig
-        run: |
-          set -euxo pipefail
-
-          mkdir -p ~/.kube
-
-          aws secretsmanager get-secret-value \
-          --secret-id "$K3S_SECRET_NAME" \
-          --query SecretString \
-          --output text \
-          > ~/.kube/config
-
-          chmod 600 ~/.kube/config
-
-          aws secretsmanager describe-secret \
-          --secret-id "$K3S_SECRET_NAME"
-
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
           test -s ~/.kube/config
+
+      - name: Add EC2 host
+        run: |
+          ssh-keyscan -H ${{ needs.infrastructure.outputs.ec2_public_ip}} 2>/dev/null >> ~/.ssh/known_hosts
 
       - name: Debug kubeconfig
         run: |
