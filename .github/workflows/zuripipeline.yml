@@ -153,7 +153,10 @@ jobs:
           
       - name: Configure SSH
         run: |
-          mkdir -p ~/.ssh
+          # $HOME points directly to /home/runner/ on GitHub Actions
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           test -s ~/.kube/config
