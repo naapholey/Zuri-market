@@ -74,13 +74,17 @@ jobs:
           cd terraform
           terraform apply -auto-approve tfplan
 
-      # Capture the Terraform output and save it to the job outputs map
       - name: Save Terraform Outputs
         id: get-outputs
         run: |
           cd terraform
+          # 1. Force a refresh so Terraform updates its state file with the real AWS IP
+          terraform refresh
+          
+          # 2. Extract the true raw public IP address
           EC2_IP=$(terraform output -raw ec2_public_ip)
           echo "ec2_public_ip=$EC2_IP" >> $GITHUB_OUTPUT
+
 
       - name: Rollback on failure
         if: failure()
@@ -177,10 +181,18 @@ jobs:
         shell: bash
         run: |
           mkdir -p "$HOME/.kube"
-          # -o StrictHostKeyChecking=no lets SSH pass without hanging on ssh-keyscan rules
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} "sudo cat /etc/rancher/k3s/k3s.yaml" > "$HOME/.kube/config"
-          sed -i "s|127.0.0.1|${{ needs.infrastructure.outputs.ec2_public_ip }}|" "$HOME/.kube/config"
+          
+          # Force the use of the dynamic output variable fetched in Stage 1
+          TARGET_IP="${{ needs.infrastructure.outputs.ec2_public_ip }}"
+          echo "Connecting to live AWS instance at IP: $TARGET_IP"
+          
+          # Run the SSH pull command using the true target IP string variable
+          ssh -o StrictHostKeyChecking=no ubuntu@$TARGET_IP "sudo cat /etc/rancher/k3s/k3s.yaml" > "$HOME/.kube/config"
+          
+          # Replace loopback IP with the dynamic cloud server IP
+          sed -i "s|127.0.0.1|$TARGET_IP|" "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
+
 
       - name: Debug kubeconfig
         run: |
