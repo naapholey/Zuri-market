@@ -151,22 +151,11 @@ jobs:
           sleep 60
         
           jobs:
-  deploy:
-    runs-on: ubuntu-latest # <--- Change this from windows-latest to ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
+  
       - name: Create SSH Directory Safely
         run: |
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-
-      - name: Configure SSH
-        run: |
-          # $HOME points directly to /home/runner/ on GitHub Actions
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
 
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
