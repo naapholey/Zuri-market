@@ -34,7 +34,5 @@ variable "outbound_port" {
   description = "Port for Kubernetes NodePort service"
  }
  variable "runner_ssh_ip" {
-  type        = string
-  description = "The public IP address allowed to SSH into the instances"
-  default = "2.2.2.2/32"
+ 
 }

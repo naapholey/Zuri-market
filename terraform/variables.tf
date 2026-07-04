@@ -33,3 +33,8 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+ variable "runner_ssh_ip" {
+ description = "Public IP of the GitHub Actions runner for SSH access"
+  type        = string
+  default     = "203.0.113.0"
+}
