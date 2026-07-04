@@ -14,7 +14,7 @@ systemctl enable docker
 systemctl start docker
 
 # Install K3s
-curl -sfL https://get.k3s.io | sh -s - --tls-san ${{ needs.terraform-infrastructure.outputs.ec2_public_ip }}
+curl -sfL https://get.k3s.io | sh -
 
 # Wait until K3s is ready
 until kubectl get nodes >/dev/null 2>&1; do
