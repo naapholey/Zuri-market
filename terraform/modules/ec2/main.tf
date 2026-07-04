@@ -14,6 +14,10 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+import {
+  to = aws_iam_role.iam_role
+  id = zuriapp-iam-role//"arn:aws:iam::870737143368:role/zuriapp-iam-role"
+}
 
 resource "aws_iam_role" "iam_role" {
   name = var.iam_role
@@ -30,6 +34,10 @@ resource "aws_iam_role" "iam_role" {
       }
     ]
   })
+}
+import {
+  to = aws_iam_policy.iam_policy
+  id = "arn:aws:iam::870737143368:policy/zuriapp-secrets-policy"
 }
 resource "aws_iam_policy" "iam_policy" {
   name = var.iam_policy
@@ -59,7 +67,10 @@ resource "aws_iam_role_policy_attachment" "attach_policy" {
 
 #------------ INSTANCE PROFILE ------------ 
 
-
+import {
+  to = aws_iam_instance_profile.instance_profile
+  id = "zuriapp-ec2-profile"
+}
 resource "aws_iam_instance_profile" "instance_profile" {
   name = var.instance_profile
   role = aws_iam_role.iam_role.name
