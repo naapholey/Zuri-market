@@ -6,7 +6,7 @@ variable "key_name" {
 
 variable "iam_role" {
   type = string
-  default = "value"
+  default = "zuriapp-iam-role"
 }
 variable "project_name" {
     default = "zuriapp"
@@ -35,7 +35,7 @@ variable "secret_arn" {
 }
 
 variable "iam_policy" {
-  default = "zuriapp-iam-policy"
+  default = "zuriapp-policy"
 }
 
 variable "subnet_id" {
