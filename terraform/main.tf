@@ -11,7 +11,7 @@ module "vpc" {
 
 module "securitygroup" {
   source = "./modules/securitygroup"
-
+  runner_ssh_ip = var.runner_ssh_ip
   vpc_id = module.vpc.vpc_id
   security_group_name = "zuriapp-sg"
   inbound_port = 80
