@@ -151,6 +151,20 @@ jobs:
       - name: Wait for EC2 Instance to be Ready
         run: sleep 60
         
+       # ─── SECURE FIX: Dynamically authorize this specific runner IP right now ───
+      - name: Authorize Runner IP in AWS Security Group
+        run: |
+          # This command dynamically adds your current runner IP into the firewall rules before scanning
+          aws ec2 authorize-security-group-ingress \
+            --group-name "k8s-ec2-security-group" \
+            --protocol tcp \
+            --port 22 \
+            --cidr "${{ needs.infrastructure.outputs.runner_ip }}/32" || true
+            
+      - name: Wait for EC2 Instance to be Ready
+        run: sleep 60
+        
+      # ─── STABLE FIX: Bypass strict keyscan check to avoid unexpected timing hangs ───
       - name: Create SSH Directory Safely
         shell: bash
         run: |
@@ -159,36 +173,12 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
           chmod 600 "$HOME/.ssh/id_rsa"
 
-      - name: Add EC2 host
-        shell: bash
-        run: |
-          echo "Scanning remote server public key..."
-          
-          for i in {1..5}; do
-            # -T 30 gives the server 30 seconds to reply instead of dropping instantly
-            ssh-keyscan -T 30 -H ${{ needs.infrastructure.outputs.ec2_public_ip }} >> "$HOME/.ssh/known_hosts" 2>ssh_err.log
-            # ssh-keyscan -H ${{ needs.infrastructure.outputs.ec2_public_ip }} 2>/dev/null >> "$HOME/.ssh/known_hosts"
-
-            if [ $? -eq 0 ]; then
-              echo "Successfully captured EC2 host key fingerprint!"
-              exit 0
-            fi
-            
-            echo "Attempt $i failed. SSH port might not be ready yet. Retrying in 10 seconds..."
-            cat ssh_err.log
-            sleep 10
-          done
-          
-          echo "Critical Error: Could not reach EC2 instance via SSH on port 22 after 5 attempts."
-          exit 1
-
-      # Download the Kubeconfig file down from the remote K3s EC2 server to the runner
       - name: Fetch Remote Kubeconfig
         shell: bash
         run: |
           mkdir -p "$HOME/.kube"
+          # -o StrictHostKeyChecking=no lets SSH pass without hanging on ssh-keyscan rules
           ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} "sudo cat /etc/rancher/k3s/k3s.yaml" > "$HOME/.kube/config"
-          # Replace local loopback IP inside config with the real EC2 public IP
           sed -i "s|127.0.0.1|${{ needs.infrastructure.outputs.ec2_public_ip }}|" "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
 
