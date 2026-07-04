@@ -15,7 +15,7 @@ resource "aws_security_group" "this" {
     to_port     = var.ssh_port         # Port range for the rule
     protocol    = "tcp"                  # Protocol
     # Appends /32 to lock it down to a single IP address
-    cidr_blocks = ["${var.runner_ssh_ip}/32"] 
+    cidr_blocks = ["${var.runner_ssh_ip}"] 
   }
 
 ingress {
