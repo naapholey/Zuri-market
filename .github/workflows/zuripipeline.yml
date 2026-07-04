@@ -15,16 +15,12 @@ jobs:
   infrastructure:
     name: Terraform & Security
     runs-on: ubuntu-latest
+    # Define outputs so STAGE 3 can actually read the EC2 IP address
+    outputs:
+      ec2_public_ip: ${{ steps.get-outputs.outputs.ec2_public_ip }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      # - name: Purge conflicting CloudWatch Log Group
-      #   run: |
-      #     aws logs delete-log-group --log-group-name "/aws/vpc-flow-logs/zuri-app-dev" || true
-      #   env:
-      #     AWS_REGION: us-east-1 # Change to your actual AWS region
-
 
       - name: Run Trivy vulnerability scanner in IaC mode
         uses: aquasecurity/trivy-action@master
@@ -32,7 +28,7 @@ jobs:
           scan-type: 'config'
           hide-progress: false
           format: 'table'
-          exit-code: '0' # Fails the build if security issues are found
+          exit-code: '0'
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -47,12 +43,10 @@ jobs:
       - name: Get GitHub Runner Public IP
         id: get-ip
         run: |
-          # Fetch the public IP and save it as a variable
           RUNNER_IP=$(curl -s https://ifconfig.me)
           echo "Runner IP is $RUNNER_IP"
-          
           # Write it directly into a Terraform variables file
-          echo "runner_ssh_ip=\"${RUNNER_IP}/32\"" > terraform.tfvars
+          echo "runner_ssh_ip=\"${RUNNER_IP}/32\"" > terraform/terraform.tfvars
 
       - name: Terraform Init
         run: |
@@ -79,13 +73,23 @@ jobs:
         run: |
           cd terraform
           terraform apply -auto-approve tfplan
+
+      # Capture the Terraform output and save it to the job outputs map
+      - name: Save Terraform Outputs
+        id: get-outputs
+        run: |
+          cd terraform
+          EC2_IP=$(terraform output -raw ec2_public_ip)
+          echo "ec2_public_ip=$EC2_IP" >> $GITHUB_OUTPUT
+
       - name: Rollback on failure
         if: failure()
         run: |
           cd terraform
           terraform destroy -auto-approve
+
   # -------------------------------------------------------------
-  # STAGE 2: Build, Scan, and Publish Containers (Req 1 & 7)
+  # STAGE 2: Build, Scan, and Publish Containers
   # -------------------------------------------------------------
   build-and-publish:
     name: Containerize & Publish
@@ -108,14 +112,13 @@ jobs:
         run: |
           docker build -t ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }} ./${{ matrix.component }}
           docker tag ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:latest
-          docker image ls
           
       - name: Scan Container Image for Vulnerabilities
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:${{ github.sha }}
           format: 'table'
-          exit-code: '0' # Fails the build if CRITICAL vulnerabilities are found
+          exit-code: '0'
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
@@ -126,7 +129,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/zuri-${{ matrix.component }}:latest
 
   # -------------------------------------------------------------
-  # STAGE 3: Continuous Deployment to Kubernetes Cluster (Req 4)
+  # STAGE 3: Continuous Deployment to Kubernetes Cluster
   # -------------------------------------------------------------
   deploy:
     name: Kubernetes Deployment
@@ -146,22 +149,30 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Wait for EC2 Instance to be Ready
-        run: |
-          echo "Waiting for EC2 instance to be fully ready..."
-          sleep 60
+        run: sleep 60
         
       - name: Create SSH Directory Safely
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          test -s ~/.kube/config
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          echo "${{ secrets.EC2_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
+          chmod 600 "$HOME/.ssh/id_rsa"
 
       - name: Add EC2 host
+        shell: bash
         run: |
-          ssh-keyscan -H ${{ needs.infrastructure.outputs.ec2_public_ip}} 2>/dev/null >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ needs.infrastructure.outputs.ec2_public_ip }} 2>/dev/null >> "$HOME/.ssh/known_hosts"
+
+      # Download the Kubeconfig file down from the remote K3s EC2 server to the runner
+      - name: Fetch Remote Kubeconfig
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.kube"
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} "sudo cat /etc/rancher/k3s/k3s.yaml" > "$HOME/.kube/config"
+          # Replace local loopback IP inside config with the real EC2 public IP
+          sed -i "s|127.0.0.1|${{ needs.infrastructure.outputs.ec2_public_ip }}|" "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
 
       - name: Debug kubeconfig
         run: |
@@ -178,21 +189,11 @@ jobs:
       - name: Update Images
         run: |
           cd k8s
-
-          sed -i \
-          "s|image:.*zuri-frontend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-frontend:${{ github.sha }}|" \
-          deployment.yml
-
-          sed -i \
-          "s|image:.*zuri-backend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-backend:${{ github.sha }}|" \
-          deployment.yml
-
-      - name: Wait for  Update Images
-        run: |
-          sleep 5
+          sed -i "s|image:.*zuri-frontend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-frontend:${{ github.sha }}|" deployment.yml
+          sed -i "s|image:.*zuri-backend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-backend:${{ github.sha }}|" deployment.yml
 
       - name: Deploy
-        run: kubectl apply --dry-run=client -f k8s/
+        run: kubectl apply -f k8s/
 
       - name: Wait for rollout
         run: |
@@ -207,7 +208,5 @@ jobs:
       - name: Rollback on failure
         if: failure()
         run: |
-          cd terraform
-          terraform destroy -auto-approve
-          kubectl rollout undo deployment/zuri-frontend-deployment
-          kubectl rollout undo deployment/zuri-backend-deployment
+          kubectl rollout undo deployment/zuri-frontend-deployment || true
+          kubectl rollout undo deployment/zuri-backend-deployment || true
