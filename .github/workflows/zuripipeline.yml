@@ -219,6 +219,9 @@ jobs:
 
       - name: Rollback on failure
         if: failure()
+        - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
         run: |
           terraform destroy -auto-approve
           kubectl rollout undo deployment/zuri-frontend-deployment
