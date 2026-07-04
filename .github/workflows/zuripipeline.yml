@@ -69,7 +69,11 @@ jobs:
         run: |
           cd terraform
           terraform apply -auto-approve tfplan
-
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          cd terraform
+          terraform destroy -auto-approve
   # -------------------------------------------------------------
   # STAGE 2: Build, Scan, and Publish Containers (Req 1 & 7)
   # -------------------------------------------------------------
@@ -116,7 +120,7 @@ jobs:
   # -------------------------------------------------------------
   deploy:
     name: Kubernetes Deployment
-    needs: build-and-publish
+    needs: [infrastructure, build-and-publish]
     runs-on: ubuntu-latest
   
     env:
@@ -131,6 +135,11 @@ jobs:
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Wait for EC2 Instance to be Ready
+        run: |
+          echo "Waiting for EC2 instance to be fully ready..."
+          sleep 60
+        
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
 
@@ -156,6 +165,12 @@ jobs:
           --secret-id "$K3S_SECRET_NAME"
 
           test -s ~/.kube/config
+
+      - name: Debug kubeconfig
+        run: |
+          ls -la ~/.kube
+          kubectl config view
+          kubectl config current-context || true
 
       - name: Verify Cluster
         run: |
