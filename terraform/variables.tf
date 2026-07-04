@@ -1,6 +1,7 @@
 variable "vpc_name" {
   description = "Name of the VPC"
   type        = string
+  default     = "zuriapp-vpc"
 }
 
 variable "vpc_cidr" {
