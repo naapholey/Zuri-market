@@ -166,6 +166,11 @@ jobs:
             sudo ss -tlnp | grep 6443 || true
             sudo kubectl get nodes
 
+            scp -r -o StrictHostKeyChecking=no ./k8s ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }}:/home/ubuntu/
+
+            ssh -o StrictHostKeyChecking=no ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} << 'EOF'
+              set -e
+
             echo "Deploying application..."
             kubectl apply -f /home/ubuntu/k8s/
 
