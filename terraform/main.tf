@@ -40,10 +40,10 @@ module "ec2" {
 }
 terraform {
   backend "s3" {
-    bucket         = "zuriapp-terraform-state-831e2263" # update this with your unique bucket name
-    key            = "global/s3/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "zuriapp-terraform-state-locks"
-    encrypt        = true
+    bucket       = "zuriapp-terraform-state-831e2263"
+    key          = "global/s3/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }
