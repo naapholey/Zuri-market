@@ -161,7 +161,10 @@ jobs:
             export KUBECONFIG=/home/ubuntu/.kube/config
 
             echo "Checking cluster..."
-            kubectl get nodes
+            sudo systemctl status k3s --no-pager
+            sudo journalctl -u k3s -n 100 --no-pager
+            sudo ss -tlnp | grep 6443 || true
+            sudo kubectl get nodes
 
             echo "Deploying application..."
             kubectl apply -f /home/ubuntu/k8s/
