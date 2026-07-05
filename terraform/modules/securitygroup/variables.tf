@@ -25,10 +25,10 @@ variable "outbound_port" {
   type        = number
   description = "Port for HTTPS traffic"
  }
- variable "kubernetes_api_port" {
+/*  variable "kubernetes_api_port" {
   type        = number
   description = "Port for Kubernetes API server"
- }
+ } */
  variable "node_port" {
   type        = number
   description = "Port for Kubernetes NodePort service"

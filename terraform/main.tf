@@ -18,7 +18,7 @@ module "securitygroup" {
   ssh_port = 22
   outbound_port = 0
   https_port = 443
-  kubernetes_api_port = 6443
+  //kubernetes_api_port = 6443
   node_port = 30000
 }
 

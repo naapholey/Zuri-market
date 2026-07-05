@@ -139,110 +139,35 @@ jobs:
     name: Kubernetes Deployment
     needs: [infrastructure, build-and-publish]
     runs-on: ubuntu-latest
-  
-    env:
-      K3S_SECRET_NAME: ${{ secrets.K3S_SECRET_NAME }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.ARN_TO_ASSUME }}
-          role-session-name: GitHub_to_AWS_via_FederatedOIDC
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Wait for EC2 Instance to be Ready
-        run: sleep 60
-        
-       # ─── SECURE FIX: Dynamically authorize this specific runner IP right now ───
-      - name: Authorize Runner IP in AWS Security Group
+      - name: Setup SSH key
         run: |
-          # This command dynamically adds your current runner IP into the firewall rules before scanning
-          aws ec2 authorize-security-group-ingress \
-            --group-name "zuriapp-sg" \
-            --protocol tcp \
-            --port 22 \
-            --cidr "${{ needs.infrastructure.outputs.ec2_public_ip }}/32" || true
-           
-          # ADD THIS: Authorize Kubernetes API (Port 6443)
-          aws ec2 authorize-security-group-ingress \
-            --group-id "$zuriapp-sg" \
-            --protocol tcp \
-            --port 6443 \
-            --cidr "${{ needs.infrastructure.outputs.ec2_public_ip }}/32" || true
-            
-      - name: Wait for EC2 Instance to be Ready
-        run: sleep 60
-        
-      # ─── STABLE FIX: Bypass strict keyscan check to avoid unexpected timing hangs ───
-      - name: Create SSH Directory Safely
-        shell: bash
-        run: |
-          mkdir -p "$HOME/.ssh"
-          chmod 700 "$HOME/.ssh"
-          echo "${{ secrets.EC2_SSH_KEY }}" > "$HOME/.ssh/id_rsa"
-          chmod 600 "$HOME/.ssh/id_rsa"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-      - name: Fetch Remote Kubeconfig
-        shell: bash
+      - name: Deploy via EC2
         run: |
-          mkdir -p "$HOME/.kube"
-          
-          # Force the use of the dynamic output variable fetched in Stage 1
-          TARGET_IP="${{ needs.infrastructure.outputs.ec2_public_ip }}"
-          echo "Connecting to live AWS instance at IP: $TARGET_IP"
-          
-          # Run the SSH pull command using the true target IP string variable
-          ssh -o StrictHostKeyChecking=no ubuntu@$TARGET_IP "sudo cat /etc/rancher/k3s/k3s.yaml" > "$HOME/.kube/config"
-          
-          # Replace loopback IP with the dynamic cloud server IP
-          sed -i "s|127.0.0.1|$TARGET_IP|" "$HOME/.kube/config"
-          chmod 600 "$HOME/.kube/config"
+          ssh -o StrictHostKeyChecking=no \
+              -o ServerAliveInterval=30 \
+              -o ServerAliveCountMax=10 \
+              ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} << 'EOF'
 
-      - name: Wait for Kubernetes API to Initialize
-        run: |
-          echo "Giving K3s API 30 seconds to spin up TLS certificates..."
-          sleep 30
+            set -e
 
-      - name: Debug kubeconfig
-        run: |
-          ls -la ~/.kube
-          kubectl config view
-          kubectl config current-context || true
+            export KUBECONFIG=/home/ubuntu/.kube/config
 
-      - name: Verify Cluster
-        run: |
-          kubectl version --client
-          kubectl cluster-info
-          kubectl get nodes
+            echo "Checking cluster..."
+            kubectl get nodes
 
-      - name: Update Images
-        run: |
-          cd k8s
-          
-          # 1. Update the frontend image tag inside frontend.yml
-          sed -i "s|image:.*zuri-frontend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-frontend:${{ github.sha }}|" frontend.yml
+            echo "Deploying application..."
+            kubectl apply -f /home/ubuntu/k8s/
 
-          # 2. Update the backend image tag inside backend.yml
-          sed -i "s|image:.*zuri-backend:.*|image: ${{ secrets.DOCKER_USERNAME }}/zuri-backend:${{ github.sha }}|" backend.yml
+            echo "Waiting for rollout..."
+            kubectl rollout status deployment/zuri-frontend-deployment --timeout=5m
+            kubectl rollout status deployment/zuri-backend-deployment --timeout=5m
 
-      - name: Deploy
-        run: |
-          kubectl apply -f k8s/
-
-      - name: Wait for rollout
-        run: |
-          kubectl rollout status deployment/zuri-frontend-deployment --timeout=5m
-          kubectl rollout status deployment/zuri-backend-deployment --timeout=5m
-
-      - name: Show Kubernetes Context
-        run: |
-          kubectl config current-context
-          kubectl get ns
-
-      - name: Rollback on failure
-        if: failure()
-        run: |
-          kubectl rollout undo deployment/zuri-frontend-deployment || true
-          kubectl rollout undo deployment/zuri-backend-deployment || true
+          EOF

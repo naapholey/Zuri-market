@@ -25,12 +25,12 @@ ingress {
     cidr_blocks = ["0.0.0.0/0"] 
 }
 
-ingress {
+/* ingress {
   from_port = var.kubernetes_api_port
   to_port = var.kubernetes_api_port
   protocol = "tcp"
   cidr_blocks = ["0.0.0.0/0"]
-}
+} */
 
 ingress {
   from_port   = var.node_port
