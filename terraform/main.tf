@@ -40,7 +40,7 @@ module "ec2" {
 }
 terraform {
   backend "s3" {
-    bucket       = "zuriapp-terraform-state-831e2263"
+    bucket       = "zuriapp-terraform-state-7563164f"
     key          = "global/s3/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true
