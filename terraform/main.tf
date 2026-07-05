@@ -38,3 +38,12 @@ module "ec2" {
   instance_profile = "zuriapp-ec2-profile"
   
 }
+terraform {
+  backend "s3" {
+    bucket         = "zuriapp-terraform-state-831e2263" # update this with your unique bucket name
+    key            = "global/s3/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "zuriapp-terraform-state-locks"
+    encrypt        = true
+  }
+}
