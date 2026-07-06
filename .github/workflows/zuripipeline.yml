@@ -141,7 +141,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup SSH key
         run: |
@@ -149,59 +150,50 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Deploy via EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no \
-              -o ServerAliveInterval=30 \
-              -o ServerAliveCountMax=10 \
-              ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} << 'EOF'
-
-            set -e
-
-            export KUBECONFIG=/home/ubuntu/.kube/config
-
-            echo "Checking cluster..."
-            sudo systemctl status k3s --no-pager
-            sudo journalctl -u k3s -n 100 --no-pager
-            sudo ss -tlnp | grep 6443 || true
-            sudo kubectl get nodes
-
       - name: Debug workspace
         run: |
-          echo "PWD=$(pwd)"
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "Current directory:"
+          pwd
+
+          echo "Repository contents:"
           ls -la
-          ls -la "$GITHUB_WORKSPACE"
-          ls -la "$GITHUB_WORKSPACE/k8s"
-            
-      - name: Copy Kubernetes manifests
+
+          echo "k8s directory:"
+          ls -la ./k8s
+
+      - name: Copy Kubernetes manifests to EC2
         run: |
           scp -r \
             -o StrictHostKeyChecking=no \
             ./k8s \
             ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }}:/home/ubuntu/
-            
-      - name: Verify manifests on EC2
+
+      - name: Deploy to K3s
         run: |
-          ssh -o StrictHostKeyChecking=no \
-            ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} \
-            "ls -R /home/ubuntu/k8s"
-            set -e
+          ssh \
+            -o StrictHostKeyChecking=no \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            ubuntu@${{ needs.infrastructure.outputs.ec2_public_ip }} <<'EOF'
+          set -e
 
-            echo "Deploying application..."
-            echo "User: $(whoami)"
-            echo "PWD: $(pwd)"
+          export KUBECONFIG=/home/ubuntu/.kube/config
 
-            ls -ld /home/ubuntu/k8s
-            ls -l /home/ubuntu/k8s
+          echo "===== Cluster ====="
+          kubectl get nodes
 
-            kubectl apply -f /home/ubuntu/k8s/backend.yml
-            kubectl apply -f /home/ubuntu/k8s/frontend.yml
-            kubectl apply -f /home/ubuntu/k8s/ingress.yml
+          echo "===== Manifests ====="
+          ls -R /home/ubuntu/k8s
 
-            kubectl get pods
-            echo "Waiting for rollout..."
-            kubectl rollout status deployment/zuri-frontend-deployment --timeout=5m
-            kubectl rollout status deployment/zuri-backend-deployment --timeout=5m
+          echo "===== Deploying ====="
+          kubectl apply -f /home/ubuntu/k8s/
 
+          echo "===== Waiting for rollout ====="
+          kubectl rollout status deployment/zuriapp-frontend --timeout=5m
+          kubectl rollout status deployment/zuriapp-backend --timeout=5m
+
+          echo "===== Pods ====="
+          kubectl get pods -A
+
+          echo "Deployment completed successfully."
           EOF
