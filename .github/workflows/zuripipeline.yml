@@ -189,8 +189,17 @@ jobs:
             set -e
 
             echo "Deploying application..."
-            kubectl apply -f /home/ubuntu/k8s
+            echo "User: $(whoami)"
+            echo "PWD: $(pwd)"
 
+            ls -ld /home/ubuntu/k8s
+            ls -l /home/ubuntu/k8s
+
+            kubectl apply -f /home/ubuntu/k8s/backend.yml
+            kubectl apply -f /home/ubuntu/k8s/frontend.yml
+            kubectl apply -f /home/ubuntu/k8s/ingress.yml
+
+            kubectl get pods
             echo "Waiting for rollout..."
             kubectl rollout status deployment/zuri-frontend-deployment --timeout=5m
             kubectl rollout status deployment/zuri-backend-deployment --timeout=5m
