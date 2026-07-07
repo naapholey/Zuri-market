@@ -16,9 +16,13 @@ RUN npm run build
 FROM nginx:alpine
 # Copy the compiled static assets from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy your native Nginx configuration if you have one
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
+RUN chown -R nginx:nginx /usr/share/nginx/html
+USER nginx
 
-EXPOSE 80
+EXPOSE 8080
+HEALTHCHECK CMD wget --quiet --tries=1 --spider http://localhost:8080/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]

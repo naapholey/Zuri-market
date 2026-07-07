@@ -18,7 +18,7 @@ spec:
       - name: frontend
         image: naapholey/zuriapp-frontend1:linux
         ports:
-        - containerPort: 80
+        - containerPort: 8080
         livenessProbe:
           httpGet:
             path: /
