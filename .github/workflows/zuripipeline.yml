@@ -30,7 +30,7 @@ jobs:
           format: 'sarif'
           severity: HIGH,CRITICAL
           exit-code: '1'
-          output: trivy-report.txt
+         # output: trivy-report.txt
 
       - name: Upload Trivy Report
         if: always()
