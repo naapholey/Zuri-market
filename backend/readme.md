@@ -41,6 +41,8 @@ npm install
 # Run application
 npm run dev
 
+```
+![alt text](<./../images/backend-local-run.png>)
 # Access at http://localhost:5000
 ```
 
@@ -48,7 +50,7 @@ npm run dev
 ###  Build the Docker Image
 ```bash
 # Navigate to project directory
-cd zuriapp-backend
+cd backend
 
 # Build the image with tag 'zuriapp-backend:v1.0'
 docker build -t zuriapp-backend:v1.0 .
