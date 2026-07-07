@@ -27,6 +27,11 @@ spec:
           periodSeconds: 10
         securityContext:
           allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          capabilities:
+            drop:
+              - ALL
 ---
 apiVersion: v1
 kind: Service
