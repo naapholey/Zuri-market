@@ -30,14 +30,14 @@ jobs:
           format: 'sarif'
           severity: HIGH,CRITICAL
           exit-code: '1'
-          output: 'trivy-report.sarif'
+          output: trivy-report.txt
 
       - name: Upload Trivy Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-report
-          path: trivy-report.sarif
+          path: trivy-report.txt
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
