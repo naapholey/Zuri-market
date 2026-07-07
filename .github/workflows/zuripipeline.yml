@@ -38,7 +38,7 @@ jobs:
         with:
           name: trivy-report
           path: trivy-report.sarif
-          
+
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -95,11 +95,11 @@ jobs:
           echo "ec2_public_ip=$EC2_IP" >> $GITHUB_OUTPUT
 
 
-      - name: Rollback on failure
-        if: failure()
-        run: |
-          cd terraform
-          terraform destroy -auto-approve
+      # - name: Rollback on failure
+      #   if: failure()
+      #   run: |
+      #     cd terraform
+      #     terraform destroy -auto-approve
 
   # -------------------------------------------------------------
   # STAGE 2: Build, Scan, and Publish Containers
