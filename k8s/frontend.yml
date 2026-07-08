@@ -10,6 +10,10 @@ spec:
     matchLabels:
       app: zuriapp-frontend
   template:
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
     metadata:
       labels:
         app: zuriapp-frontend
@@ -33,6 +37,9 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
         securityContext:
+          seccompProfile:
+            type: RuntimeDefault
+          runAsNonRoot: true
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true

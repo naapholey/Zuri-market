@@ -28,6 +28,8 @@ spec:
         - containerPort: 5000
         # Self-healing config: monitors app availability
         securityContext:
+          seccompProfile:
+            type: RuntimeDefault
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
