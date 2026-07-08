@@ -28,7 +28,7 @@ jobs:
           scan-type: 'config'
           hide-progress: false
           format: 'sarif'
-          severity: HIGH,CRITICAL
+          #severity: HIGH,CRITICAL
           exit-code: '0'
          # output: trivy-report.txt
 
