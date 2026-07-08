@@ -10,10 +10,6 @@ spec:
     matchLabels:
       app: zuriapp-frontend
   template:
-    spec:
-      securityContext:
-        seccompProfile:
-          type: RuntimeDefault
     metadata:
       labels:
         app: zuriapp-frontend
@@ -21,15 +17,8 @@ spec:
       containers:
       - name: frontend
         image: naapholey/zuriapp-frontend1:linux
-        resources:
-          requests:
-            cpu: "100m"
-            memory: "128Mi"
-          limits:
-            cpu: "500m"
-            memory: "256Mi"
         ports:
-        - containerPort: 8080
+        - containerPort: 80
         livenessProbe:
           httpGet:
             path: /
@@ -37,15 +26,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 10
         securityContext:
-          seccompProfile:
-            type: RuntimeDefault
-          runAsNonRoot: true
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          capabilities:
-            drop:
-              - ALL
 ---
 apiVersion: v1
 kind: Service

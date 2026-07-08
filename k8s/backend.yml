@@ -17,25 +17,11 @@ spec:
       containers:
       - name: backend
         image: naapholey/zuriapp-backend1:linux
-        resources:
-          requests:
-            cpu: "250m"
-            memory: "256Mi"
-          limits:
-            cpu: "1000m"
-            memory: "512Mi"
         ports:
         - containerPort: 5000
         # Self-healing config: monitors app availability
         securityContext:
-          seccompProfile:
-            type: RuntimeDefault
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          runAsNonRoot: true
-          capabilities:
-            drop:
-              - ALL
 ---
 apiVersion: v1
 kind: Service
