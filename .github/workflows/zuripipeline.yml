@@ -29,8 +29,8 @@ jobs:
           hide-progress: false
           format: 'sarif'
           severity: CRITICAL
-          exit-code: '0'
-         # output: trivy-report.txt
+          exit-code: '1'
+          output: trivy-report-${{ matrix.component }}.txt
 
       - name: Upload Trivy Report
         if: always()
